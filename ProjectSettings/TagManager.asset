@@ -47,6 +47,9 @@ TagManager:
   - name: Background
     uniqueID: 1597686063
     locked: 0
+  - name: Intermediate
+    uniqueID: 1026746827
+    locked: 0
   - name: Entity
     uniqueID: 3301500613
     locked: 0
