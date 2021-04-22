@@ -1,0 +1,5 @@
+BUGS
+colision con enemigos (meterse abajo de la rana)
+al caer por un slope, la animacion anda mal
+framerate independance
+el collider que es una pelota hace que ruede si suelto el boton de mover, o si estoy en un slope (probar con ponerle friccion al material)

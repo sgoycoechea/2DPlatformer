@@ -15,39 +15,50 @@ public class PlayerController : MonoBehaviour
     private Animator animator;
     private Collider2D coll;
 
-    // Inspector variables
-    [SerializeField] private LayerMask ground;
-    [SerializeField] private float speed = 7f;
-    [SerializeField] private float jumpForce = 6.5f;
-    [SerializeField] private int points = 0;
-    [SerializeField] private float hurtForce = 5f;
-    [SerializeField] private Text pointsText;
+    // Player configuration
+    [SerializeField] private float runSpeed = 7f;                               // Speed of the player.
+    [SerializeField] private float jumpForce = 14f;                             // Amount of force added when the player jumps.
+    [SerializeField] private bool airControl = true;							// Whether or not a player can steer while jumping.
+    [SerializeField] private float hurtForce = 5f;                              // Amount of force added when the player is hurt.
+    [Range(0, 1)] [SerializeField] private float crouchSpeed = .36f;            // Amount of maxSpeed applied to crouching movement.
+    [Range(0, .3f)] [SerializeField] private float movementSmoothing = 0f;      // How much to smooth out the movement
+    [SerializeField] private Collider2D crouchDisableCollider;	     			// A collider that will be disabled when crouching
 
+    // These need to be serialized to be set
+    [SerializeField] private LayerMask ground;                                  // A mask determining what is ground to the character
+    [SerializeField] private Transform groundCheckBox;                          // A position marking where to check if the player is grounded.
+    [SerializeField] private Transform ceilingCheckBox;                         // A position marking where to check for ceilings.
+    [SerializeField] private Text pointsText;                                   // Text with the current point count.
+
+    // Audio
     [SerializeField] private AudioSource footstep;
     [SerializeField] private AudioSource cherry;
     [SerializeField] private AudioSource gem;
 
-
     // FSM
     private enum State { idle, running, jumping, falling, hurt }
     private State state = State.idle;
+
+    // Other
+    int points = 0;
+    bool facingRight = true;
+    Vector3 velocity = Vector3.zero;
+    //const float ceilingRadius = .2f; // Radius of the overlap circle to determine if the player can stand up
 
     // Start is called before the first frame update
     void Start()
     {
         rb = GetComponent<Rigidbody2D>();
         animator = GetComponent<Animator>();
-        coll = GetComponent<Collider2D>();
+        coll = GetComponent<CircleCollider2D>();
     }
 
-    // Update is called once per frame
     void Update()
     {
         if (state != State.hurt) ManageMovement();
-        SetState();
+        CalculateState();
     }
 
-    // This is an override
     private void OnTriggerEnter2D(Collider2D collision)
     {
         if (collision.tag == "Gem")
@@ -88,18 +99,63 @@ public class PlayerController : MonoBehaviour
 
     private void ManageMovement()
     {
-        // To check for a specific key we can use Input.GetKey(KeyCode.A) or Input.GetKeyDown(KeyCode.A), but it's a bad practice
-        float hDirection = Input.GetAxis("Horizontal");
-        if (hDirection != 0)
+        //bool crouch = Input.GetButtonDown("Crouch");
+        //if (!crouch && Physics2D.OverlapCircle(ceilingCheckBox.position, ceilingRadius, ground)) // If the character has a ceiling preventing them from standing up, keep them crouching
+        //    crouch = true;
+
+        float horizontalMove = Input.GetAxis("Horizontal");
+
+        if (canMovePlayer() && horizontalMove != 0)
         {
-            rb.velocity = new Vector2(hDirection > 0 ? speed : -speed, rb.velocity.y);
-            transform.localScale = new Vector2(hDirection > 0 ? 1 : -1, transform.localScale.y);
+            float move = horizontalMove * runSpeed;
+
+            if (false/*crouch*/)
+            {
+                move *= crouchSpeed;
+                if (crouchDisableCollider != null) crouchDisableCollider.enabled = false; // Disable one of the colliders when crouching
+            }
+            else
+            {
+                if (crouchDisableCollider != null) crouchDisableCollider.enabled = true; // Enable the collider when not crouching
+            }
+
+
+            //rb.velocity = new Vector2(move, rb.velocity.y);
+            Vector3 targetVelocity = new Vector2(move, rb.velocity.y);
+            rb.velocity = Vector3.SmoothDamp(rb.velocity, targetVelocity, ref velocity, movementSmoothing);
+
+            if (ShouldFlipSprite(move))
+                FlipSprite();
         }
 
-        if (Input.GetButtonDown("Jump") && coll.IsTouchingLayers(ground) && state != State.hurt)
-        {
+        if (Input.GetButtonDown("Jump") && canJump())
             Jump();
-        }
+    }
+
+    private bool ShouldFlipSprite(float move)
+    {
+        return (move > 0 && !facingRight) || (move < 0 && facingRight);
+    }
+
+    private void FlipSprite()
+    {
+        facingRight = !facingRight;
+        transform.localScale = new Vector2(transform.localScale.x * -1, transform.localScale.y);
+    }
+
+    private bool canMovePlayer()
+    {
+        return state == State.idle || state == State.running || (state == State.jumping && airControl) || (state == State.falling && airControl);
+    }
+
+    private bool canJump()
+    {
+        return isPlayerOnTheGround() && state != State.hurt;
+    }
+
+    private bool isPlayerOnTheGround()
+    {
+        return coll.IsTouchingLayers(ground);
     }
 
     private void Jump()
@@ -108,7 +164,7 @@ public class PlayerController : MonoBehaviour
         state = State.jumping;
     }
 
-    private void SetState()
+    private void CalculateState()
     {
         switch (state)
         {
