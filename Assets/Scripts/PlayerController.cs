@@ -14,7 +14,6 @@ public class PlayerController : MonoBehaviour
     private Rigidbody2D rb;
     private Animator animator;
     private Collider2D coll;
-    private AudioSource footstep;
 
     // Inspector variables
     [SerializeField] private LayerMask ground;
@@ -22,9 +21,12 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private float jumpForce = 6.5f;
     [SerializeField] private int points = 0;
     [SerializeField] private float hurtForce = 5f;
-
     [SerializeField] private Text pointsText;
-    
+
+    [SerializeField] private AudioSource footstep;
+    [SerializeField] private AudioSource cherry;
+    [SerializeField] private AudioSource gem;
+
 
     // FSM
     private enum State { idle, running, jumping, falling, hurt }
@@ -36,7 +38,6 @@ public class PlayerController : MonoBehaviour
         rb = GetComponent<Rigidbody2D>();
         animator = GetComponent<Animator>();
         coll = GetComponent<Collider2D>();
-        footstep = GetComponent<AudioSource>();
     }
 
     // Update is called once per frame
@@ -52,12 +53,14 @@ public class PlayerController : MonoBehaviour
         if (collision.tag == "Gem")
         {
             Destroy(collision.gameObject);
+            gem.Play();
             points += 5;
         }
 
         if (collision.tag == "Cherry")
         {
             Destroy(collision.gameObject);
+            cherry.Play();
             points += 1;
         }
 

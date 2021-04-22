@@ -7,18 +7,21 @@ public class Enemy : MonoBehaviour
     // Start() variables
     protected Rigidbody2D rb;
     protected Animator animator;
+    protected AudioSource death;
 
     // Start is called before the first frame update
     protected virtual void Start()
     {
         animator = GetComponent<Animator>();
         rb = GetComponent<Rigidbody2D>();
+        death = GetComponent<AudioSource>();
     }
 
 
     public virtual void HandleJumpedOn()
     {
         rb.velocity = new Vector2(0, 0);
+        death.Play();
         animator.SetTrigger("death");
     }
 
