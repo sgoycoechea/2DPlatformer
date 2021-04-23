@@ -35,14 +35,12 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private AudioSource cherry;
     [SerializeField] private AudioSource gem;
 
-    // FSM
-    private enum State { idle, running, jumping, falling, hurt, crouching }
-    private State state = State.idle;
-
     // Other
     int points = 0;
     bool facingRight = true;
-    bool crouching = false;
+    bool isCrouching = false;
+    bool isHurting = false;
+    bool isGrounded = false;
     Vector3 velocity = Vector3.zero;
     const float ceilingRadius = .2f; // Radius of the overlap circle to determine if the player can stand up
 
@@ -56,7 +54,7 @@ public class PlayerController : MonoBehaviour
 
     void Update()
     {
-        if (state != State.hurt) ManageMovement();
+        if (!isHurting) ManageMovement();
         CalculateState();
     }
 
@@ -83,14 +81,14 @@ public class PlayerController : MonoBehaviour
         if (other.gameObject.tag == "Enemy")
         {
             Enemy enemy = other.gameObject.GetComponent<Enemy>();
-            if (state == State.falling)
+            if (IsFalling())
             {
                 enemy.HandleJumpedOn();
                 Jump();
             }
             else
             {
-                state = State.hurt;
+                isHurting = true; 
                 bool isEnemyToTheRight = other.gameObject.transform.position.x > transform.position.x;
                 rb.velocity = new Vector2(isEnemyToTheRight ? -hurtForce : hurtForce, rb.velocity.y);
             }
@@ -100,9 +98,9 @@ public class PlayerController : MonoBehaviour
 
     private void ManageMovement()
     {
-        crouching = Input.GetButton("Crouch") && (state == State.idle || state == State.running || state == State.crouching);
-        if (!crouching && Physics2D.OverlapCircle(ceilingCheckBox.position, ceilingRadius, ground)) // If the character has a ceiling preventing them from standing up, keep them crouching
-            crouching = true;
+        isCrouching = Input.GetButton("Crouch") && isGrounded && !isHurting;
+        if (!isCrouching && Physics2D.OverlapCircle(ceilingCheckBox.position, ceilingRadius, ground)) // If the character has a ceiling preventing them from standing up, keep them crouching
+            isCrouching = true;
 
         float horizontalMove = Input.GetAxis("Horizontal");
 
@@ -110,7 +108,7 @@ public class PlayerController : MonoBehaviour
         {
             float move = horizontalMove * runSpeed;
 
-            if (crouching)
+            if (isCrouching)
             {
                 move *= crouchSpeed;
                 if (crouchDisableCollider != null) crouchDisableCollider.enabled = false; // Disable one of the colliders when crouching
@@ -146,12 +144,12 @@ public class PlayerController : MonoBehaviour
 
     private bool canMovePlayer()
     {
-        return state == State.idle || state == State.running || state == State.crouching || (state == State.jumping && airControl) || (state == State.falling && airControl);
+        return !isHurting && (isGrounded || airControl);
     }
 
     private bool canJump()
     {
-        return isPlayerOnTheGround() && state != State.hurt;
+        return isPlayerOnTheGround() && !isHurting;
     }
 
     private bool isPlayerOnTheGround()
@@ -162,43 +160,24 @@ public class PlayerController : MonoBehaviour
     private void Jump()
     {
         rb.velocity = new Vector2(rb.velocity.x, jumpForce);
-        state = State.jumping;
+    }
+
+    private bool IsFalling()
+    {
+        return !isGrounded && !isHurting && rb.velocity.y < 1f;
     }
 
     private void CalculateState()
     {
-        switch (state)
-        {
-            case State.jumping:
-                if (rb.velocity.y < .1f) state = State.falling;
-                break;
-            case State.running:
-                if (rb.velocity.y < -.1f && !isPlayerOnTheGround()) state = State.falling;
-                else if (crouching) state = State.crouching;
-                else if (Mathf.Abs(rb.velocity.x) < 2f) state = State.idle;
-                break;
-            case State.idle:
-                if (rb.velocity.y < -.1f && !isPlayerOnTheGround()) state = State.falling;
-                else if (crouching) state = State.crouching;
-                else if (Mathf.Abs(rb.velocity.x) > 2f) state = State.running;
-                break;
-            case State.falling:
-                if (coll.IsTouchingLayers(ground)) state = State.idle;
-                break;
-            case State.hurt:
-                if (Mathf.Abs(rb.velocity.x) < .1f) state = State.idle;
-                break;
-            case State.crouching:
-                if (!crouching)
-                {
-                    if (Mathf.Abs(rb.velocity.x) > 2f) state = State.running;
-                    else state = State.idle;
-                }
-                else if (rb.velocity.y < -.1f && !isPlayerOnTheGround()) state = State.falling;
-                break;
-        }
-        
-        animator.SetInteger("state", (int)state);
+        if (isHurting && Mathf.Abs(rb.velocity.x) < .1f) isHurting = false;
+        isGrounded = isPlayerOnTheGround();
+
+        animator.SetBool("IsGrounded", isGrounded);
+        animator.SetBool("IsCrouching", isCrouching);
+        animator.SetBool("IsHurt", isHurting);
+        animator.SetFloat("VerticalSpeed", rb.velocity.y);
+        animator.SetFloat("VerticalSpeedAbs", Mathf.Abs(rb.velocity.y));
+        animator.SetFloat("HorizontalSpeedAbs", Mathf.Abs(rb.velocity.x));
     }
 
     private void Footstep()
