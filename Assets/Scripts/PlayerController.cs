@@ -36,14 +36,15 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private AudioSource gem;
 
     // FSM
-    private enum State { idle, running, jumping, falling, hurt }
+    private enum State { idle, running, jumping, falling, hurt, crouching }
     private State state = State.idle;
 
     // Other
     int points = 0;
     bool facingRight = true;
+    bool crouching = false;
     Vector3 velocity = Vector3.zero;
-    //const float ceilingRadius = .2f; // Radius of the overlap circle to determine if the player can stand up
+    const float ceilingRadius = .2f; // Radius of the overlap circle to determine if the player can stand up
 
     // Start is called before the first frame update
     void Start()
@@ -99,9 +100,9 @@ public class PlayerController : MonoBehaviour
 
     private void ManageMovement()
     {
-        //bool crouch = Input.GetButtonDown("Crouch");
-        //if (!crouch && Physics2D.OverlapCircle(ceilingCheckBox.position, ceilingRadius, ground)) // If the character has a ceiling preventing them from standing up, keep them crouching
-        //    crouch = true;
+        crouching = Input.GetButton("Crouch") && (state == State.idle || state == State.running || state == State.crouching);
+        if (!crouching && Physics2D.OverlapCircle(ceilingCheckBox.position, ceilingRadius, ground)) // If the character has a ceiling preventing them from standing up, keep them crouching
+            crouching = true;
 
         float horizontalMove = Input.GetAxis("Horizontal");
 
@@ -109,7 +110,7 @@ public class PlayerController : MonoBehaviour
         {
             float move = horizontalMove * runSpeed;
 
-            if (false/*crouch*/)
+            if (crouching)
             {
                 move *= crouchSpeed;
                 if (crouchDisableCollider != null) crouchDisableCollider.enabled = false; // Disable one of the colliders when crouching
@@ -145,7 +146,7 @@ public class PlayerController : MonoBehaviour
 
     private bool canMovePlayer()
     {
-        return state == State.idle || state == State.running || (state == State.jumping && airControl) || (state == State.falling && airControl);
+        return state == State.idle || state == State.running || state == State.crouching || (state == State.jumping && airControl) || (state == State.falling && airControl);
     }
 
     private bool canJump()
@@ -172,11 +173,13 @@ public class PlayerController : MonoBehaviour
                 if (rb.velocity.y < .1f) state = State.falling;
                 break;
             case State.running:
-                if (rb.velocity.y < -.1f) state = State.falling;
+                if (rb.velocity.y < -.1f && !isPlayerOnTheGround()) state = State.falling;
+                else if (crouching) state = State.crouching;
                 else if (Mathf.Abs(rb.velocity.x) < 2f) state = State.idle;
                 break;
             case State.idle:
-                if (rb.velocity.y < -.1f) state = State.falling;
+                if (rb.velocity.y < -.1f && !isPlayerOnTheGround()) state = State.falling;
+                else if (crouching) state = State.crouching;
                 else if (Mathf.Abs(rb.velocity.x) > 2f) state = State.running;
                 break;
             case State.falling:
@@ -184,6 +187,14 @@ public class PlayerController : MonoBehaviour
                 break;
             case State.hurt:
                 if (Mathf.Abs(rb.velocity.x) < .1f) state = State.idle;
+                break;
+            case State.crouching:
+                if (!crouching)
+                {
+                    if (Mathf.Abs(rb.velocity.x) > 2f) state = State.running;
+                    else state = State.idle;
+                }
+                else if (rb.velocity.y < -.1f && !isPlayerOnTheGround()) state = State.falling;
                 break;
         }
         
