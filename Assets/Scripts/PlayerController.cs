@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
+using TMPro;
 
 public class PlayerController : MonoBehaviour
 {
@@ -28,7 +29,8 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private LayerMask ground;                                  // A mask determining what is ground to the character
     [SerializeField] private Transform groundCheckBox;                          // A position marking where to check if the player is grounded.
     [SerializeField] private Transform ceilingCheckBox;                         // A position marking where to check for ceilings.
-    [SerializeField] private Text pointsText;                                   // Text with the current point count.
+    [SerializeField] private TextMeshProUGUI cherryCountText;                   // Text with the current cherry count.
+    [SerializeField] private TextMeshProUGUI gemCountText;                      // Text with the current gem count.
 
     // Audio
     [SerializeField] private AudioSource footstep;
@@ -36,11 +38,13 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private AudioSource gem;
 
     // Other
-    int points = 0;
+    int cherryCount = 0;
+    int gemCount = 0;
     bool facingRight = true;
     bool isCrouching = false;
     bool isHurting = false;
     bool isGrounded = false;
+    bool isColliding = false;
     Vector3 velocity = Vector3.zero;
     const float ceilingRadius = .2f; // Radius of the overlap circle to determine if the player can stand up
 
@@ -54,30 +58,37 @@ public class PlayerController : MonoBehaviour
 
     void Update()
     {
+        isColliding = false;
         if (!isHurting) ManageMovement();
         CalculateState();
     }
 
     private void OnTriggerEnter2D(Collider2D collision)
     {
+        if (isColliding) return;
+        isColliding = true;
+
         if (collision.tag == "Gem")
         {
             Destroy(collision.gameObject);
             gem.Play();
-            points += 5;
+            gemCount += 1;
+            gemCountText.text = gemCount.ToString();
         }
 
         if (collision.tag == "Cherry")
         {
             Destroy(collision.gameObject);
             cherry.Play();
-            points += 1;
+            cherryCount += 1;
+            cherryCountText.text = cherryCount.ToString();
         }
-
-        pointsText.text = points.ToString();
     }
     private void OnCollisionEnter2D(Collision2D other)
     {
+        if (isColliding) return;
+        isColliding = true;
+
         if (other.gameObject.tag == "Enemy")
         {
             Enemy enemy = other.gameObject.GetComponent<Enemy>();
@@ -139,7 +150,7 @@ public class PlayerController : MonoBehaviour
     private void FlipSprite()
     {
         facingRight = !facingRight;
-        transform.localScale = new Vector2(transform.localScale.x * -1, transform.localScale.y);
+        transform.Rotate(0f, 180f, 0f);
     }
 
     private bool canMovePlayer()
@@ -164,7 +175,7 @@ public class PlayerController : MonoBehaviour
 
     private bool IsFalling()
     {
-        return !isGrounded && !isHurting && rb.velocity.y < 1f;
+        return !isGrounded && rb.velocity.y < 2f;
     }
 
     private void CalculateState()

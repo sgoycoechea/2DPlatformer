@@ -3,3 +3,8 @@ colision con enemigos (meterse abajo de la rana)
 framerate independance
 
 el collider que es una pelota hace que ruede si suelto el boton de mover, o si estoy en un slope. ademas si corro desde una subida salgo saltando
+
+
+DUDAS
+
+mejor forma de manejar las FSM? Any State para todo? Un enum? Logica en el animator?

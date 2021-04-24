@@ -21,6 +21,8 @@ public class Enemy : MonoBehaviour
     public virtual void HandleJumpedOn()
     {
         rb.velocity = new Vector2(0, 0);
+        rb.bodyType = RigidbodyType2D.Static;
+        GetComponent<Collider2D>().enabled = false;
         death.Play();
         animator.SetTrigger("death");
     }
