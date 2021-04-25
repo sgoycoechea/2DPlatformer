@@ -2,8 +2,6 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.UI;
-using TMPro;
 
 public class PlayerController : MonoBehaviour
 {
@@ -29,8 +27,6 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private LayerMask ground;                                  // A mask determining what is ground to the character
     [SerializeField] private Transform groundCheckBox;                          // A position marking where to check if the player is grounded.
     [SerializeField] private Transform ceilingCheckBox;                         // A position marking where to check for ceilings.
-    [SerializeField] private TextMeshProUGUI cherryCountText;                   // Text with the current cherry count.
-    [SerializeField] private TextMeshProUGUI gemCountText;                      // Text with the current gem count.
 
     // Audio
     [SerializeField] private AudioSource footstep;
@@ -38,8 +34,6 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private AudioSource gem;
 
     // Other
-    int cherryCount = 0;
-    int gemCount = 0;
     bool facingRight = true;
     bool isCrouching = false;
     bool isHurting = false;
@@ -72,16 +66,15 @@ public class PlayerController : MonoBehaviour
         {
             Destroy(collision.gameObject);
             gem.Play();
-            gemCount += 1;
-            gemCountText.text = gemCount.ToString();
+            PermanentUI.shared.IncreaseGemCount(1);
+            
         }
 
         if (collision.tag == "Cherry")
         {
             Destroy(collision.gameObject);
             cherry.Play();
-            cherryCount += 1;
-            cherryCountText.text = cherryCount.ToString();
+            PermanentUI.shared.IncreaseCherryCount(1);
         }
     }
     private void OnCollisionEnter2D(Collision2D other)
